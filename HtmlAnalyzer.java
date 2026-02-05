@@ -25,6 +25,9 @@ public class HtmlAnalyzer {
 
             Deque<String> stack = new ArrayDeque<>();
 
+            int maxDepth = -1;
+            String bestText = null;
+
             while ((line = br.readLine()) != null) {
                 line = line.strip();
                 if (line.isEmpty()) {
@@ -34,7 +37,6 @@ public class HtmlAnalyzer {
                 if (isOpeningTag(line)) {
                     String tag = extractTagName(line);
                     stack.push(tag);
-                    System.out.println("OPEN  depth=" + stack.size() + " tag=" + tag);
 
                 } else if (isClosingTag(line)) {
                     String tag = extractTagName(line);
@@ -46,11 +48,14 @@ public class HtmlAnalyzer {
                     }
 
                     stack.pop();
-                    System.out.println("CLOSE depth=" + (stack.size() + 1) + " tag=" + tag);
 
                 } else {
                     int depth = stack.size();
-                    System.out.println("TEXT  depth=" + depth + " text=" + line);
+                    if (depth > maxDepth) {
+                        maxDepth = depth;
+                        bestText = line;
+                    }
+
                 }
             }
 
@@ -58,6 +63,10 @@ public class HtmlAnalyzer {
                 System.out.println("malformed HTML");
                 br.close();
                 return;
+            }
+
+            if (bestText != null) {
+                System.out.println(bestText);
             }
 
             br.close();
