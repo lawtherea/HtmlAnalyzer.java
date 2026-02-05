@@ -17,59 +17,53 @@ public class HtmlAnalyzer {
         try {
             URL url = new URL(urlStr);
 
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader(url.openStream())
-            );
-
-            String line;
-
             Deque<String> stack = new ArrayDeque<>();
-
             int maxDepth = -1;
             String bestText = null;
 
-            while ((line = br.readLine()) != null) {
-                line = line.strip();
-                if (line.isEmpty()) {
-                    continue;
-                }
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(url.openStream())
+            )) {
+                String line;
 
-                if (isOpeningTag(line)) {
-                    String tag = extractTagName(line);
-                    stack.push(tag);
-
-                } else if (isClosingTag(line)) {
-                    String tag = extractTagName(line);
-
-                    if (stack.isEmpty() || !stack.peek().equals(tag)) {
-                        System.out.println("malformed HTML");
-                        br.close();
-                        return;
+                while ((line = br.readLine()) != null) {
+                    line = line.strip();
+                    if (line.isEmpty()) {
+                        continue;
                     }
 
-                    stack.pop();
+                    if (isOpeningTag(line)) {
+                        String tag = extractTagName(line);
+                        stack.push(tag);
 
-                } else {
-                    int depth = stack.size();
-                    if (depth > maxDepth) {
-                        maxDepth = depth;
-                        bestText = line;
+                    } else if (isClosingTag(line)) {
+                        String tag = extractTagName(line);
+
+                        if (stack.isEmpty() || !stack.peek().equals(tag)) {
+                            System.out.println("malformed HTML");
+                            return;
+                        }
+
+                        stack.pop();
+
+                    } else {
+                        int depth = stack.size();
+                        if (depth > maxDepth) {
+                            maxDepth = depth;
+                            bestText = line;
+                        }
                     }
-
                 }
             }
 
             if (!stack.isEmpty()) {
                 System.out.println("malformed HTML");
-                br.close();
                 return;
             }
 
             if (bestText != null) {
                 System.out.println(bestText);
             }
-
-            br.close();
 
         } catch (Exception e) {
             System.out.println("URL connection error");
@@ -93,5 +87,4 @@ public class HtmlAnalyzer {
         int end = line.length() - 1;
         return line.substring(start, end).trim();
     }
-
 }
