@@ -1,90 +1,49 @@
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 
-public class HtmlAnalyzer {
+public final class HtmlAnalyzer {
+
+    private static final String MALFORMED_HTML = "malformed HTML";
+    private static final String URL_CONNECTION_ERROR = "URL connection error";
 
     public static void main(String[] args) {
-        if (args.length != 1) {
+        if (args == null || args.length != 1) {
             return;
         }
 
-        String urlStr = args[0];
+        HtmlDepthAnalyzer.Outcome outcome = analyze(args[0]);
 
-        try {
-            URL url = new URL(urlStr);
-
-            Deque<String> stack = new ArrayDeque<>();
-            int maxDepth = -1;
-            String bestText = null;
-
-            try (BufferedReader br = new BufferedReader(
-                    new InputStreamReader(url.openStream())
-            )) {
-                String line;
-
-                while ((line = br.readLine()) != null) {
-                    line = line.strip();
-                    if (line.isEmpty()) {
-                        continue;
-                    }
-
-                    if (isOpeningTag(line)) {
-                        String tag = extractTagName(line);
-                        stack.push(tag);
-
-                    } else if (isClosingTag(line)) {
-                        String tag = extractTagName(line);
-
-                        if (stack.isEmpty() || !stack.peek().equals(tag)) {
-                            System.out.println("malformed HTML");
-                            return;
-                        }
-
-                        stack.pop();
-
-                    } else {
-                        int depth = stack.size();
-                        if (depth > maxDepth) {
-                            maxDepth = depth;
-                            bestText = line;
-                        }
-                    }
-                }
+        switch (outcome.status) {
+            case TEXT ->
+                System.out.println(outcome.text);
+            case MALFORMED ->
+                System.out.println(MALFORMED_HTML);
+            case URL_ERROR ->
+                System.out.println(URL_CONNECTION_ERROR);
+            case NONE -> {
             }
-
-            if (!stack.isEmpty()) {
-                System.out.println("malformed HTML");
-                return;
-            }
-
-            if (bestText != null) {
-                System.out.println(bestText);
-            }
-
-        } catch (Exception e) {
-            System.out.println("URL connection error");
         }
     }
 
-    private static boolean isTagLine(String line) {
-        return line.startsWith("<") && line.endsWith(">");
-    }
+    private static HtmlDepthAnalyzer.Outcome analyze(String urlStr) {
+        try {
+            URL url = new URL(urlStr);
+            URLConnection conn = url.openConnection();
+            conn.setConnectTimeout(2000);
+            conn.setReadTimeout(2000);
 
-    private static boolean isClosingTag(String line) {
-        return isTagLine(line) && line.startsWith("</");
-    }
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
 
-    private static boolean isOpeningTag(String line) {
-        return isTagLine(line) && !isClosingTag(line);
-    }
-
-    private static String extractTagName(String line) {
-        int start = line.startsWith("</") ? 2 : 1;
-        int end = line.length() - 1;
-        return line.substring(start, end).trim();
+                return new HtmlDepthAnalyzer().findDeepestText(br);
+            }
+        } catch (IOException | RuntimeException e) {
+            return HtmlDepthAnalyzer.Outcome.urlError();
+        }
     }
 }
