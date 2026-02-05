@@ -2,6 +2,8 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 public class HtmlAnalyzer {
 
@@ -21,20 +23,41 @@ public class HtmlAnalyzer {
 
             String line;
 
+            Deque<String> stack = new ArrayDeque<>();
+
             while ((line = br.readLine()) != null) {
-                line = line.trim();
+                line = line.strip();
                 if (line.isEmpty()) {
                     continue;
                 }
 
                 if (isOpeningTag(line)) {
-                    System.out.println("OPEN " + extractTagName(line));
-                } else if (isClosingTag(line)) {
-                    System.out.println("CLOSE " + extractTagName(line));
-                } else {
-                    System.out.println("TEXT " + line);
-                }
+                    String tag = extractTagName(line);
+                    stack.push(tag);
+                    System.out.println("OPEN  depth=" + stack.size() + " tag=" + tag);
 
+                } else if (isClosingTag(line)) {
+                    String tag = extractTagName(line);
+
+                    if (stack.isEmpty() || !stack.peek().equals(tag)) {
+                        System.out.println("malformed HTML");
+                        br.close();
+                        return;
+                    }
+
+                    stack.pop();
+                    System.out.println("CLOSE depth=" + (stack.size() + 1) + " tag=" + tag);
+
+                } else {
+                    int depth = stack.size();
+                    System.out.println("TEXT  depth=" + depth + " text=" + line);
+                }
+            }
+
+            if (!stack.isEmpty()) {
+                System.out.println("malformed HTML");
+                br.close();
+                return;
             }
 
             br.close();
